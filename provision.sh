@@ -7,3 +7,9 @@ if ! [[ $(command -v salt-call) ]]; then
 	yum clean expire-cache
 	yum install salt-minion -y
 fi
+
+# Install Extra Packages for Enterprise Linux (EPEL) repository
+if ! [[ $(yum repolist | grep epel) ]]; then
+	echo "Install Extra Packages for Enterprise Linux (EPEL)"
+	yum --enablerepo=extras install epel-release -y
+fi
