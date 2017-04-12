@@ -74,7 +74,7 @@
     " Always switch to the current file directory
     autocmd BufEnter * if bufname("") !~ "^\[A-Za-z0-9\]*://" | lcd %:p:h | endif
 
-    "set autowrite               " Automatically write a file when leaving a modified buffer 
+    "set autowrite               " Automatically write a file when leaving a modified buffer
     set autoread                 " Automatically re-read the file when it is changed outside Vim
     set shortmess+=filmnrxoOtT   " Abbrev. of message (avoids 'hit enter'
     set viewoptions=folds,options,cursor,unix,slash " Better Unix / Windows compatibility
@@ -203,12 +203,12 @@
     noremap 0 :call WrapRelativeMotion("0")<CR>
     noremap <Home> :call WrapRelativeMotion("0")<CR>
     noremap ^ :call WrapRelativeMotion("^")<CR>
-    
+
     " Overwrite the operator pending $/<End> mappings from above
     " to force inclusive motion with :execute normal!
     onoremap $ v:call WrapRelativeMotion("$")<CR>
     onoremap <End> v:call WrapRelativeMotion("$")<CR>
-    
+
     " Overwrite the Visual+select mode mappings from above
     " to ensure the correct vis_sel flag is passed to function
     vnoremap $ :<C-U>call WrapRelativeMotion("$", 1)<CR>
@@ -309,6 +309,27 @@
         let g:solarized_visibility="normal"
         colorscheme solarized
     " }
+
+    " Misc. {
+        let g:NERDShutUp=1
+        let b:match_ignorecase=1
+    " }
+
+    " NERDTree {
+        map <C-e> <plug>NERDTreeTabsToggle<CR>
+        map <leader>e :NERDTreeFind<CR>
+        nmap <leader>nt: NERDTreeFind<CR>
+
+        let NERDTreeShowBookmarks=1
+        let NERDTreeIgnore=['\.py[cd]$', '\~$', '\.swo$', '\.swp$', '^\.git$', '^\.hg$', '^\.svn$', '\.bzr$']
+        let NERDTreeChDirMode=2
+        let NERDTreeQuitOnOpen=1
+        let NERDTreeMouseMode=2
+        let NERDTreeShowHidden=1
+        let NERDTreeKeepTreeInNewTab=1
+
+        let g:nerdtree_tabs_open_on_gui_startup=0
+    " }
 " }
 
 " GUI Settings {
@@ -364,16 +385,31 @@
         call InitializeDirectories()
     " }
 
+    " initialize NERDTree as needed {
+        function! NERDTreeInitAsNeeded()
+            redir => bufoutput
+            buffers!
+            redir END
+            let idx = stridx(bufoutput, "NERD_tree")
+
+            if idx > -1
+                NERDTreeMirror
+                NERDTreeFind
+                wincmd l
+            endif
+        endfunction
+    " }
+
     " Strip whitespace {
         function! StripTrailingWhitespace()
             " Preparation: save last search, and cursor position.
             let _s=@/
             let l = line(".")
             let c = col(".")
-        
+
             " do the business:
             %s/\s\+$//e
-        
+
             " clean up: restore previous search history, and cursor position
             let @/=_s
             call cursor(l, c)
