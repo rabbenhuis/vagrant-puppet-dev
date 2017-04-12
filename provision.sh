@@ -13,3 +13,6 @@ if ! [[ $(yum repolist | grep epel) ]]; then
 	echo "Install Extra Packages for Enterprise Linux (EPEL)"
 	yum --enablerepo=extras install epel-release -y
 fi
+
+# Let's roll it out
+salt-call --local --config-dir=/vagrant/salt/config --file-root=/vagrant/salt/states --pillar-root=/vagrant/salt/pillar state.highstate
