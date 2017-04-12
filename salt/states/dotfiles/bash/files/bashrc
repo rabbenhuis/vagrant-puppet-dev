@@ -1,0 +1,442 @@
+###############################################################################
+#
+# *Personal* bashrc script
+#
+# Copyright (C) 2016, by Richard Abbenhuis
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the #Software#),
+# to deal in the Software without restriction, including without l> imitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED #AS IS#, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+#
+# Description:
+#
+# The bashrc script contains my *personal* bash shell environment variables to
+# initialize the bash shell when i log in.
+#
+# Revisions:
+# 01/22/2016    R. Abbenhuis    Created bashrc
+#
+###############################################################################
+
+# If not running interactively, don't do anything
+[[ "$-" != *i* ]] && return
+
+#------------------------------------------------------------------------------
+# Source global definitions (if any)
+#------------------------------------------------------------------------------
+if [[ -f /etc/bashrc ]]; then
+        source /etc/bashrc
+fi
+
+#------------------------------------------------------------------------------
+# Source git-prompt and git-completion
+#------------------------------------------------------------------------------
+if [[ -f ~/bin/git-prompt.sh ]]; then
+    source ~/bin/git-prompt.sh
+fi
+
+if [[ -f ~/bin/git-completion.sh ]]; then
+    source ~/bin/git-completion.sh
+fi
+
+#------------------------------------------------------------------------------
+# Automatic setting of $DISPLAY (if not set already)
+#------------------------------------------------------------------------------
+function get_xserver() {
+    case $TERM in
+        xterm)
+            XSERVER=$(who am i | awk '{ print $NF }' | tr -d ')''(' )
+            XSERVER=${XSERVER%%:*}
+            ;;
+    esac
+}
+
+if [[ -z ${DISPLAY:=""} ]]; then
+    get_xserver
+    if [[ -z ${XSERVER} || ${XSERVER} == $(hostname) || ${XSERVER} == "unix" ]]; then
+        # Display on localhost
+        DISPLAY=:0.0
+    else
+        # Display on remote host
+        DISPLAY=${XSERVER}:0.0
+    fi
+fi
+
+export DISPLAY
+
+#------------------------------------------------------------------------------
+# Some settings
+#------------------------------------------------------------------------------
+#set -o nounset     # These  two options are useful for debugging.
+#set -o xtrace
+alias debug="set -o nounset; set -o xtrace"
+
+ulimit -S -c 0      # Don't want coredumps.
+set -o notify
+set -o noclobber
+set -o ignoreeof
+
+# Enable options:
+shopt -s cdspell
+shopt -s cdable_vars
+shopt -s checkhash
+shopt -s checkwinsize
+shopt -s sourcepath
+shopt -s no_empty_cmd_completion
+shopt -s cmdhist
+shopt -s histappend histreedit histverify
+shopt -s extglob       # Necessary for programmable completion.
+
+# Disable options:
+shopt -u mailwarn
+unset MAILCHECK        # Don't want my shell to warn me of incoming mail.
+
+#------------------------------------------------------------------------------
+# Greeting, motd etc. ...
+#------------------------------------------------------------------------------
+# Normal colors
+black='\e[0;30m'
+red='\e[0;31m'
+green='\e[0;32m'
+yellow='\e[0;33m'
+blue='\e[0;34m'
+magenta='\e[0;35m'
+cyan='\e[0;36m'
+white='\e[0;37m'
+
+# Bold colors
+brblack='\e[1;30m'
+brred='\e[1;31m'
+brgreen='\e[1;32m'
+bryellow='\e[1;33m'
+brblue='\e[1;34m'
+brmagenta='\e[1;35m'
+brcyan='\e[1;36m'
+brwhite='\e[1;37m'
+
+# Background colors
+on_black='\e[40m'
+on_red='\e[41m'
+on_green='\e[42m'
+on_yellow='\e[43m'
+on_blue='\e[44m'
+on_magenta='\e[45m'
+on_cyan='\e[46m'
+on_white='\e[47m'
+
+RESET_COLOR='\e[0m'
+ALERT=${brwhite}${on_red}
+
+eval `dircolors ~/.dir_colors`
+
+#------------------------------------------------------------------------------
+# Shell Prompt
+#------------------------------------------------------------------------------
+# Current format: [TIME USER@HOST PWD]$
+# TIME:
+#       Green           == machine load is low
+#       Bright Red      == machine load is medium
+#       Red             == machine load is high
+#       ALERT           == machine load is very high
+# USER:
+#       Red             == root
+#       Bright Red      == SU to user
+#       Bright Blue     == normal user
+# HOST:
+#       Bright Cyan     == Local session
+#       Green           == secured remote connection (via ssh)
+#       ALERT           == unsecured remote connection
+# PWD:
+#       Green           == more than 10% free disk space
+#       Bright Red      == less than 10% free disk space
+#       ALERT           == less than 5% free disk space
+#       Red             == current user does not have write privileges
+#       Cyan            == current filesystem is size zero (like /proc)
+# $:
+#       Bright Blue     == no background or suspended jobs in this shell
+#       Bright Cyan     == at least on background job in this shell
+#       Bright Red      == at least on suspended job in this shell
+
+# Test connection type:
+if [[ -n "${SSH_CONNECTION}" ]]; then
+    # Connected on remote machine, via SSH (good)
+    CNX=${green}
+elif [[ "${DISPLAY%%:0*}" != "" ]]; then
+    # Connected on remote machine, not via SSH (bad)
+    CNX=${ALERT}
+else
+    # Connected on local machine
+    CNX=${brcyan}
+fi
+
+# Test user type
+if [[ "${USER}" == "root" ]]; then
+    # User is root
+    SU=${red}
+elif [[ "${USER}" != "$(logname)" ]]; then
+    # User is not login user
+    SU=${brred}
+else
+    # User is normal
+    SU=${brblue}
+fi
+
+NCPU=$(grep -c 'processor' /proc/cpuinfo) # Number of CPUs
+SLOAD=$(( 100*${NCPU} ))                  # Small load
+MLOAD=$(( 200*${NCPU} ))                  # Medium load
+XLOAD=$(( 400*${NCPU} ))                  # Xlarge load
+
+# Returns system load as percentage, i.e., '40' rather than '0.40)'.
+function load()
+{
+    local SYSLOAD=$(cut -d " " -f1 /proc/loadavg | tr -d '.')
+    # System load of the current host.
+    echo $((10#$SYSLOAD))       # Convert to decimal.
+}
+
+# Returns a color indicating system load.
+function load_color() {
+    local SYSLOAD=$(load)
+
+    if [ ${SYSLOAD} -gt ${XLOAD} ]; then
+        echo -en ${ALERT}
+    elif [ ${SYSLOAD} -gt ${MLOAD} ]; then
+        echo -en ${red}
+    elif [ ${SYSLOAD} -gt ${SLOAD} ]; then
+        echo -en ${brred}
+    else
+        echo -en ${green}
+    fi
+}
+
+function disk_color() {
+    if [[ ! -w "${PWD}" ]]; then
+        # No write permissions in the current directory
+        echo -en ${red}
+    elif [[ -s "${PWD}" ]]; then
+        local used=$(command df -P "${PWD}" | awk 'END { print $5 } { sub(/%/,"") }')
+
+        if [[ ${used} -gt 95 ]]; then
+            echo -en ${ALERT}
+        elif [[ ${used} -gt 90 ]]; then
+            echo -en ${brred}
+        else
+            echo -en ${green}
+        fi
+    else
+        echo -en ${cyan}
+    fi
+} # disk_color
+
+# Returns a color according to running/suspended jobs.
+function job_color() {
+    if [ $(jobs -s | wc -l) -gt "0" ]; then
+        echo -en ${brred}
+    elif [ $(jobs -r | wc -l) -gt "0" ] ; then
+        echo -en ${brcyan}
+    fi
+}
+
+# Construct the prompt
+PROMPT_COMMAND="history -a"
+case ${TERM} in
+    xterm* | rxvt | linux)
+        # Time of day (with load info)
+        PS1="[\[\$(load_color)\]\A\[${RESET_COLOR}\] "
+        # User@Host (with connection type info)
+        PS1=${PS1}"\[${SU}\]\u\[${RESET_COLOR}\]@\[${CNX}\]\h\[${RESET_COLOR}\] "
+        # PWD (with disk space info)
+        PS1=${PS1}"\[\$(disk_color)\]\w\[${RESET_COLOR}\]] "
+        # git info
+        PS1=${PS1}'$(__git_ps1 "\[${green}\](%s)\[${RESET_COLOR}\] ")'
+        # Prompt (with 'job' info)
+        PS1=${PS1}"\[\$(job_color)\]$\[${RESET_COLOR}\] "
+        # Set title of the current xterm
+        PS1=${PS1}"\[\e]0;[\u@\h] \w\a\]"
+        ;;
+    *)
+        PS1="(\A \u@\h \w) > "
+        ;;
+esac
+
+export TIMEFORMAT=$'\nreal %3R\tuser %3U\tsys %3S\tpcpu %P\n'
+export HISTIGNORE="&:bg:fg:ll:h"
+export HISTTIMEFORMAT="$(echo -e ${brcyan})[%d/%m %H:%M:%S]$(echo -e ${RESET_COLOR}) "
+export HISTCONTROL=ignoredups
+export HOSTFILE=$HOME/.hosts    # Put a list of remote hosts in ~/.hosts
+
+#==============================================================================
+#
+# ALIASES AND FUNCTIONS
+#
+#==============================================================================
+
+#------------------
+# Personal aliases
+#------------------
+alias du='du -kh'
+alias df='df -kTh'
+
+#------------------
+# The 'ls' family
+#------------------
+# Add colors for filetype and  human-readable sizes by default on 'ls':
+alias ls='ls -h --color=auto'
+alias lx='ls -lXB'         #  Sort by extension.
+alias lk='ls -lSr'         #  Sort by size, biggest last.
+alias lt='ls -ltr'         #  Sort by date, most recent last.
+alias lc='ls -ltcr'        #  Sort by/show change time,most recent last.
+alias lu='ls -ltur'        #  Sort by/show access time,most recent last.
+
+# The ubiquitous 'll': directories first, with alphanumeric sorting:
+alias ll="ls -lv --group-directories-first"
+alias lm='ll |more'        #  Pipe through 'more'
+alias lr='ll -R'           #  Recursive ls.
+alias la='ll -A'           #  Show hidden files.
+alias tree='tree -Csuh'    #  Nice alternative to 'recursive ls' ...
+
+#-------------------
+# The 'grep' family
+#-------------------
+alias grep='grep --color=auto'
+alias egrep='grep -E'
+alias fgrep='grep -F'
+
+#-------------------------------------------------------------
+# Tailoring 'less'
+#-------------------------------------------------------------
+alias more='less'
+export PAGER=less
+#export LESSCHARSET='latin1'
+# Use this if lesspipe.sh exists.
+export LESSOPEN='|/usr/bin/lesspipe.sh %s 2>&-'
+export LESS='-i -n -w -z-4 -g -e -M -X -F -R -P%t?f%f :stdin .?pb%pb\%:?lbLine %lb:?bbByte %bb:-...'
+
+# LESS man page colors (makes Man pages more readable).
+export LESS_TERMCAP_mb=$'\e[01;31m'             # begin blinking (red)
+export LESS_TERMCAP_md=$'\e[01;38;5;166m'       # begin bold (brred)
+export LESS_TERMCAP_me=$'\e[0m'                 # end mode
+export LESS_TERMCAP_se=$'\e[0m'                 # end standout-mode
+export LESS_TERMCAP_so=$'\e[38;5;245m'          # begin standout-mode (brcyan)
+export LESS_TERMCAP_ue=$'\e[0m'                 # end underline
+export LESS_TERMCAP_us=$'\e[38;5;33m'           # begin underline (blue)
+
+#------------------------
+# Git & Puppet tailoring
+#------------------------
+
+#------------------------------
+# Vagrant & SaltStack tailoring
+#------------------------------
+alias vh='cd /vagrant'
+alias sah='cd /vagrant/saltstack/salt'
+
+#-----------------
+# Aliases for ssh
+#-----------------
+alias ish='scr ssh -A -Y -l it-si $*'
+alias osh='scr ssh -A -Y -l oracle $*'
+alias msh='scr ssh -A -Y -l mysql $*'
+alias ush='scr ssh -A -Y -l aa100412@ALFA.LOCAL $*'
+
+#----------------------------
+# Aliases for xterm with ssh
+#----------------------------
+alias xish='xsh -l it-si $*'
+alias xosh='xsh -l oracle $*'
+alias xmsh='xsh -l mysql $*'
+alias xush='xsh -l aa100412@ALFA.LOCAL $*'
+
+#-----------------
+# Other aliases
+#-----------------
+alias man='scr man $*'
+alias info='scr info $*'
+alias vim='scr vim $*'
+alias sudo='scr sudo $*'
+alias irb='scr irb $*'
+alias tail='scr tail $*'
+
+#--------------------
+# Aliases for screen
+#--------------------
+#alias linuxscr='screen $*'
+
+# Function to run a command in a fresh screen.
+function scr() {
+    # Get the current directory and the name of the command
+    local working_dir=`pwd`
+    local command=$1
+    shift
+
+    if [[ -z ${STY} ]]; then
+        # Not in screen so run the command.
+        ${command} $*
+    else
+        # Use screen to run the command.
+        screen -X chdir ${working_dir}
+
+        if [[ ${command} == "ssh" ]]; then
+            local ssh_server="${3##*@}"
+            local ssh_user=$2
+            local ssh_os=`ssh -l ${ssh_user} ${ssh_server} uname`
+
+            screen -X screen -t "$ssh_server" ${command} $*
+        else
+            screen -X screen -t "$command $*" ${command} $*
+        fi
+    fi
+}
+
+function xsh() {
+    local ssh_server="${3##*@}"
+    local ssh_user=$2
+
+    xterm -e "ssh -A -Y -l ${ssh_user} ${ssh_server}" &
+}
+
+# Handy Extract Program
+function extract() {
+    if [ -f $1 ] ; then
+        case $1 in
+            *.tar.bz2)   tar xvjf $1     ;;
+            *.tar.gz)    tar xvzf $1     ;;
+            *.bz2)       bunzip2 $1      ;;
+            *.rar)       unrar x $1      ;;
+            *.gz)        gunzip $1       ;;
+            *.tar)       tar xvf $1      ;;
+            *.tbz2)      tar xvjf $1     ;;
+            *.tgz)       tar xvzf $1     ;;
+            *.zip)       unzip $1        ;;
+            *.Z)         uncompress $1   ;;
+            *.7z)        7z x $1         ;;
+            *)           echo "'$1' cannot be extracted via >extract<" ;;
+        esac
+    else
+        echo "'$1' is not a valid file!"
+    fi
+}
+
+# Creates an archive (*.tar.gz) from given directory.
+function maketar() {
+    tar cvzf "${1%%/}.tar.gz"  "${1%%/}/";
+}
+
+# Create a ZIP archive of a file or folder.
+function makezip() {
+    zip -r "${1%%/}.zip" "$1" ;
+}
