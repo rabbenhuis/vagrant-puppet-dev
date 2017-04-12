@@ -14,5 +14,11 @@ if ! [[ $(yum repolist | grep epel) ]]; then
 	yum --enablerepo=extras install epel-release -y
 fi
 
+# Install vim
+if ! [[ $(command -v vim) ]]; then
+	echo "Install Vi IMproved"
+	yum install vim -y
+fi
+
 # Let's roll it out
 salt-call --local --config-dir=/vagrant/salt/config --file-root=/vagrant/salt/states --pillar-root=/vagrant/salt/pillar state.highstate
